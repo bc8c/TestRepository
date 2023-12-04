@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- bootstrap -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+        <!-- jquery -->
+        <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+
+        <title>공구카</title>
+    </head>
+    <body>
+        <div class="container">
+            <br>            
+            <h3><%= username %>님 공구카에 오신것을 환영합니다!</h3>
+            <a class="btn btn-outline-dark" href="/user/logout">로그아웃하기</a>
+            <br><br>
+            <% if(userclass == "admin"){ %>                
+                <a class="btn btn-warning" href="/admin/registercar">차량등록하기</a>
+                <a class="btn btn-success" href="/admin/purchasecar">차량구매하기</a>
+            <% } else {%>
+                <p>일반사용자용 페이지</p>                
+                <div class="row row-cols-auto">
+                    <% for (var i = 0; i < carlist.length; i++){ %>
+                        <div class="col"> 
+                            <div class="card" style="width: 10rem;">
+                                <div class="card-body">
+                                    <h5 class="card-title"><%= carlist[i] %></h5>
+                                </div>
+                                <div class="card-header">
+                                    <input type="hidden" id="carid" value="<%= carlist[i] %>">
+                                    <button name="querycar" class="btn btn-secondary btn-sm" id="btn-querycar<%= [i] %>" value="<%= carlist[i] %>">정보조회하기</button>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                    <% } %>                    
+                </div>                
+            <% } %>            
+        </div>
+        <div id="resultdiv" class="container" style="display: none;">
+            <br>
+            <h3>조회된 차량 정보</h3> <br>
+            <div class="col">
+                <div class="card" style="width: 25rem;">
+                    <div class="card-body">
+                        <h5 class="card-title" id="title-Name"></h5>
+                        <hr>
+                        <p class="card-text" id="body-carid"> </p>
+                        <p class="card-text" id="body-Color"> </p>
+                        <p class="card-text" id="body-Owner"> </p>
+                        <p class="card-text" id="body-Price"> </p>                        
+                        <p class="card-text" id="body-RegDate"> </p>
+                        <p class="card-text" id="body-Renter"> </p>
+                        <p class="card-text" id="body-Expiration"></p>
+                        <p class="card-text" id="body-Available"></p>
+                    </div>
+                    <div class="card-header">                        
+                        <button style="display: none;" id="btn-rentcar" class="btn btn-primary btn-sm">차량대여하기</button>
+                        <button style="display: none;" id="btn-returncar" class="btn btn-success btn-sm">차량반납하기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+
+    <script>
+        
+        $("button[name=querycar]").click((e)=>{
+            console.log("/in aaa")
+            
+            const carid = e.target.value
+
+            $.post("/chaincode/querycarinfo", {carid}, (data)=>{
+                console.log(data)
+                
+                if (data.resultcode == "success") {
+                    $("#resultdiv").hide()
+                    $("#title-Name").text(data.msg.Name)
+                    $("#body-carid").text("차량ID : " + data.msg.cid)
+                    $("#body-Color").text("색상 : " + data.msg.color)
+                    $("#body-Owner").text("소유주 : " + data.msg.owner)
+                    $("#body-Price").text("가격 : " + data.msg.price)
+                    date = new Date(data.msg.RegDate * 1000 + 9 * 60 * 60 * 1000)
+                    $("#body-RegDate").text("등록일 : " + date.toLocaleString("ko-KR"))                    
+                    $("#body-Renter").text("대여자 : " + data.msg.renter)
+
+                    if (data.msg.expiration == 0) {
+                        $("#body-Expiration").text("반납예정 : 없음")
+                    } else {
+                        date = new Date(data.msg.expiration * 1000 + 9 * 60 * 60 * 1000)
+                    $("#body-Expiration").text("반납예정 : " + date.toLocaleString("ko-KR"))
+                    }
+                    
+                    if (data.msg.available==true) {
+                        $("#btn-rentcar").show();
+                        $("#btn-returncar").hide();
+                        $("#btn-rentcar").attr("value", data.msg.cid)
+                    } else {
+                        $("#btn-returncar").show();
+                        $("#btn-rentcar").hide();
+                        $("#btn-returncar").attr("value", data.msg.cid)
+                    }
+                    $("#resultdiv").fadeIn(3000)                    
+                } else {
+                    $("#resultdiv").empty()
+                    $("#resultdiv").append(`<h3>${data.msg}</h3>`)
+                    $("#resultdiv").fadeIn(2000)
+                    $("#resultdiv").delay(2000)
+                    $("#resultdiv").fadeOut(2000)
+                }                
+            })
+        })
+
+        $("#btn-rentcar").click((e)=>{
+
+            const carid = e.target.value
+
+            $.post("/chaincode/renteCar", {carid}, (data)=>{
+                console.log(data)
+                if (data.resultcode == "success") {
+                    $("button[name=querycar]").trigger("click");
+                }
+            })
+        })
+
+        $("#btn-returncar").click((e)=>{
+            const carid = e.target.value
+            $.post("/chaincode/returnCar", {carid}, (data)=>{
+                console.log(data)
+                if (data.resultcode == "success") {
+                    $("button[name=querycar]").trigger("click");
+                }
+            })
+        })
+        
+       
+
+    </script>
+</html>
